@@ -1,0 +1,109 @@
+---
+title: "Live Session Assignment 6"
+author: "Chris Irwin"
+date: "10/15/2016"
+output: html_document
+---
+
+Please load the following packages (plyr, gdata)
+```{r include=FALSE}
+require(plyr)
+require(gdata)
+```
+
+After downloading the Excel file and saving it as a .csv file run the following command
+```{r}
+qns <- read.csv("rollingsales_Queens.csv",skip=4,header=TRUE)
+```
+
+We need to remove commas from the data set, we will create a new column named Sale.Price.N
+```{r}
+qns$SALE.PRICE.N <- as.numeric(gsub("[^[:digit:]]","", qns$SALE.PRICE))
+```
+
+See the number of records that have an NA after removing commas
+```{r}
+count(is.na(qns$SALE.PRICE.N))
+```
+
+We are renaming the variables names to be all lower case
+```{r}
+names(qns) <- tolower(names(qns))
+head(qns)
+```
+
+Remove additional commas in columns gross.sqft, land.sqft
+```{r}
+qns$gross.sqft <- as.numeric(gsub("[^[:digit:]]","", qns$gross.square.feet))
+qns$land.sqft <- as.numeric(gsub("[^[:digit:]]","", qns$land.square.feet))
+```
+
+Cast year.built as numeric
+```{r}
+qns$year.built <- as.numeric(as.character(qns$year.built))
+```
+
+Look at price data to see if there are any outliers
+```{r}
+hist(qns$sale.price.n) 
+```
+
+When looking at the histogram we see there are some very large outliers. We want to remove any sale that do not have an actual sales price.  
+```{r}
+qns.sale <- qns[qns$sale.price.n!=0,]
+dim(qns.sale)
+```
+
+Create a plot to show Gross SQ Ft vs Sales Price  
+```{r}
+plot(qns.sale$gross.sqft,qns.sale$sale.price.n)
+```
+
+Due to the extreme outliers we can try a log transformation 
+```{r}
+plot(log10(qns.sale$gross.sqft),log10(qns.sale$sale.price.n))
+```
+
+Now we want to look at 1, 2 and 3 family homes
+```{r}
+qns.homes <- qns.sale[which(grepl("FAMILY",qns.sale$building.class.category)),]
+dim(qns.homes)
+plot(log10(qns.homes$gross.sqft),log10(qns.homes$sale.price.n))
+```
+
+Take a look at the summary for sales prices of family homes lower than 100,000.00
+```{r}
+summary(qns.homes[which(qns.homes$sale.price.n<100000),])
+```
+
+We want to remove any outliers that look like they werent actual sales. We created a new column called outliers by using the log of 10. 
+```{r}
+qns.homes$outliers <- (log10(qns.homes$sale.price.n) <=5) + 0
+```
+
+Now we want to remove the outliers and only use properties that are sales by recreating the qns.homes data set. 
+```{r}
+qns.homes <- qns.homes[which(qns.homes$outliers==0),]
+```
+
+Final Tidy data set 
+```{r}
+plot(log(qns.homes$gross.sqft),log(qns.homes$sale.price.n))
+```
+
+Create additional Graphs for Analysis
+```{r}
+library(plotly)
+library(sqldf)
+average.PricePerHood <- sqldf('select neighborhood, avg([sale.price.n]) as AverageOfHood from [qns.homes] group by neighborhood order by neighborhood')
+
+ plot_ly(x = average.PricePerHood$neighborhood, y= average.PricePerHood$AverageOfHood, Name = "Average Price per Neighborhood", type = "bar")
+
+```
+
+
+
+
+
+
+
